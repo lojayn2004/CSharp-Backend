@@ -4,58 +4,21 @@ using BCrypt.Net;
 using First_Backend.Data;
 using First_Backend.Models;
 using First_Backend.Dtos;
+using ServicesAbstraction;
 
 namespace First_Backend.Controllers
 {
-    [ApiController] // Specified as an API controller
+    [ApiController] 
     [Route("api/user")]
-    public class UserController: ControllerBase
+    public class UserController(IUserService _userService): ControllerBase
     {
-        private readonly MyDbContext _context;
-
-        public UserController(MyDbContext context)
-        {
-            _context = context;
-        }
+        
 
         // Signs up a new user
         [HttpPost("signup")]
-        public async Task<ActionResult<User>> CreateUser(User user)
+        public async Task<ActionResult<UserDto>> CreateUser(User user)
         {
-            // Check if a user with the same name already exists
-            bool isNameTaken = await _context.Users.AnyAsync(u => u.Name == user.Name);
-            if (isNameTaken)
-            {
-                // Returns error code 400 for Bad Request
-                return BadRequest("Username already exists");
-            }
-
-            // Check for duplicate email entries
-            bool isEmailTaken = await _context.Users.AnyAsync(u => u.Email == user.Email);
-            if (isEmailTaken)
-            {
-                // Returns error code 400 for Bad Request
-                return BadRequest("Email already exists");
-            }
-
-            // Hash the password
-            user.Password = BCrypt.Net.BCrypt.HashPassword(user.Password);
-
-            // Add a new user
-            _context.Users.Add(user);
-            
-            // Save changes
-            await _context.SaveChangesAsync();
-
-            // Create a UserDto to be returned in API Response
-            var userDto = new UserDto
-            {
-                Id = user.Id,
-                Name = user.Name,
-                Email = user.Email
-            };
-
-            // Return HTTP response
+            var userDto = await _userService.CreateUser(user);
             return CreatedAtAction(nameof(CreateUser), new { id = userDto.Id }, userDto);
         }
 
@@ -63,15 +26,7 @@ namespace First_Backend.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<UserDto>>> GetUsers()
         {
-            var users = await _context.Users
-                .Select(user => new UserDto
-                {
-                    Id = user.Id,
-                    Name = user.Name,
-                    Email = user.Email
-                })
-                .ToListAsync();
-            
+            var users = await _userService.GetAllUsers();
             return Ok(users);
         }
 
@@ -79,20 +34,7 @@ namespace First_Backend.Controllers
         [HttpGet("{id}")]
         public async Task<ActionResult<UserDto>> GetUser(int id)
         {
-            var user = await _context.Users
-                .Where(u => u.Id== id)
-                .Select(user => new UserDto
-                {
-                    Id = user.Id,
-                    Name = user.Name,
-                    Email = user.Email
-                })
-                .FirstOrDefaultAsync();
-            
-            if (user == null)
-            {
-                return NotFound();
-            }
+            var user = await _userService.GetUserById(id);
 
             return Ok(user);
         }
@@ -101,16 +43,8 @@ namespace First_Backend.Controllers
         [HttpDelete("{id}")]
         public async Task<ActionResult<User>> DeleteUser(int id)
         {
-            // Find the user to be deleted
-            var user = await _context.Users.FindAsync(id);
-            if (user == null)
-            {
-                return NotFound();
-            }
-
-            // Delete from DB and save changes
-            _context.Users.Remove(user);
-            await _context.SaveChangesAsync();
+           
+            await _userService.DeleteUser(id);
 
             return Ok(new { message = "User has been deleted successfully" });
         }

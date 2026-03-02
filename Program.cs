@@ -3,6 +3,9 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using First_Backend.Data;
+using ServicesAbstraction;
+using Services;
+using CustomMiddleWares;
 
 internal class Program
 {
@@ -50,11 +53,15 @@ internal class Program
         });
 
         builder.Services.AddAuthorization();
+        builder.Services.AddScoped<IAuthService, AuthService>();
+        builder.Services.AddScoped<IUserService, UserService>();
+
 
         // Build the web application
         var app = builder.Build();
 
         // Configure the HTTP Pipeline
+        app.UseMiddleware<GlobalExceptionHandlerMiddleware>();
         if (app.Environment.IsDevelopment())
         {
             app.UseDeveloperExceptionPage();
